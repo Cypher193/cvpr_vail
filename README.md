@@ -20,6 +20,23 @@ commit them before any pilot run and do not edit thresholds after seeing data.
 | `pilot/metrics.py` | symmetric MRA, original MRA, SILog, γ, residual, CRPS, bootstrap, Holm (`python -m pilot.metrics` self-check) |
 | `pilot/download.py` | Physics-IQ and QuantiPhy val clips, real-clip manifest with hand-drawn boxes |
 
+## RunPod setup
+
+Image: `ghcr.io/cypher193/cvpr_vail:latest`, built by GitHub Actions from the [Dockerfile](Dockerfile) on every
+change to it or to `requirements.txt` (torch 2.8 / CUDA 12.8 base with SSH, all Python packages, Blender in `/opt/bpy`).
+The image holds dependencies only; code and data live on the network volume.
+
+Pod template:
+- Container image: `ghcr.io/cypher193/cvpr_vail:latest` (if the package is private, add GHCR registry credentials
+  in RunPod: username = GitHub user, password = a classic token with `read:packages`; or make the package public)
+- Container disk 30 GB; network volume (200 GB) mounted at `/workspace`
+- Expose TCP 22 (SSH) and HTTP 8888 (Jupyter)
+- Environment: `HF_TOKEN = {{ RUNPOD_SECRET_HF_TOKEN }}` (store the token as a RunPod secret)
+- Filter hosts to CUDA 12.8 or newer
+- Render pod: RTX 4090 (or any RTX with >= 16 GB). Generation pod: RTX A6000 48 GB or A100 80 GB.
+
+First time on the volume: `cd /workspace && git clone https://github.com/Cypher193/cvpr_vail.git`; afterwards `git pull`.
+
 ## Order of work
 
 All steps run on RunPod (A100 80 GB, network volume >= 150 GB at /workspace).

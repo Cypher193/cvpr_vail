@@ -2,17 +2,20 @@
 # Render every pilot scene with Blender (bpy 5.2 needs Python 3.13, so it gets its own venv via uv).
 # About 12,500 frames. Re-running skips clips that already exist. Works on RunPod (Linux) or locally.
 set -euo pipefail
-if [ ! -d .venv-bpy ]; then
-  if command -v apt-get >/dev/null; then       # libraries the bpy wheel needs on a headless Linux pod
-    apt-get update -qq && apt-get install -y -qq libxrender1 libxi6 libxkbcommon0 libxxf86vm1 libxfixes3 \
-      libsm6 libice6 libgl1 libegl1 >/dev/null
+# The Docker image ships Blender in /opt/bpy (BPY_PYTHON). Without the image, build a local venv.
+PY=${BPY_PYTHON:-}
+if [ -z "$PY" ]; then
+  if [ ! -d .venv-bpy ]; then
+    if command -v apt-get >/dev/null; then       # libraries the bpy wheel needs on a headless Linux pod
+      apt-get update -qq && apt-get install -y -qq libxrender1 libxi6 libxkbcommon0 libxxf86vm1 libxfixes3         libsm6 libice6 libgl1 libegl1 >/dev/null
+    fi
+    command -v uv >/dev/null || pip install -q uv
+    uv venv --python 3.13 .venv-bpy
+    uv pip install --python .venv-bpy bpy==5.2.2 numpy pyyaml
   fi
-  command -v uv >/dev/null || pip install -q uv
-  uv venv --python 3.13 .venv-bpy
-  uv pip install --python .venv-bpy bpy==5.2.2 numpy pyyaml
+  PY=.venv-bpy/bin/python
+  [ -x "$PY" ] || PY=.venv-bpy/Scripts/python
 fi
-PY=.venv-bpy/bin/python
-[ -x "$PY" ] || PY=.venv-bpy/Scripts/python
 python -m pilot.scenes --out data/scenes
 mkdir -p data/logs
 # Four independent jobs in parallel (one process does not fill the GPU); logs in data/logs/.
