@@ -181,8 +181,10 @@ def render(spec_path, out_dir, gpu=False, samples=32, fps=24, seconds=6.0, suffi
     sc.render.ffmpeg.format = "MPEG4"
     sc.render.ffmpeg.codec = "H264"
     sc.render.ffmpeg.constant_rate_factor = "PERC_LOSSLESS"
-    sc.render.filepath = str(out.resolve())
+    partial = out.with_suffix(".partial.mp4")              # finished clips only ever appear under the final name
+    sc.render.filepath = str(partial.resolve())
     bpy.ops.render.render(animation=True)
+    os.replace(partial, out)
     (Path(out_dir) / f"{spec['id']}{suffix}.assets.json").write_text(json.dumps(used | dict(fps=fps, seconds=seconds)))
 
 

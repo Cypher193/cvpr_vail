@@ -15,6 +15,7 @@ from pathlib import Path
 from huggingface_hub import HfApi, snapshot_download, whoami
 
 PATTERNS = ["data/scenes/**", "data/renders/**", "data/logs/**", "data/real/**", "runs/**", "results/**"]
+IGNORE = ["**/*.partial.mp4", "**/*.tmp"]      # clips still being written
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -32,7 +33,7 @@ def push():
         print("nothing to push yet", flush=True)
         return
     HfApi().upload_large_folder(repo_id=repo_id(), repo_type="dataset", folder_path=ROOT,
-                                allow_patterns=PATTERNS, private=True, print_report=False)
+                                allow_patterns=PATTERNS, ignore_patterns=IGNORE, private=True, print_report=False)
     print(time.strftime("%H:%M:%S"), "pushed", repo_id(), flush=True)
 
 

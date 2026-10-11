@@ -16,8 +16,11 @@ if [ -z "$PY" ]; then
   PY=.venv-bpy/bin/python
   [ -x "$PY" ] || PY=.venv-bpy/Scripts/python
 fi
+python scripts/sync.py pull || true          # resume: finished clips from an earlier pod are skipped
 python -m pilot.scenes --out data/scenes
 mkdir -p data/logs
+python scripts/sync.py push --every 600 > data/logs/sync_render.log 2>&1 &   # push finished clips every 10 min
+SYNC_PID=$!
 # Four independent jobs in parallel (one process does not fill the GPU); logs in data/logs/.
 #   full 24 fps clips: tracker validation (P0) and rendered-vs-real comparison
 #   48 fps input windows: exact input frames at 16 fps (every 3rd) and 24 fps (every 2nd)
@@ -38,5 +41,6 @@ fail=0
 for p in "${pids[@]}"; do wait "$p" || fail=1; done
 rm -rf data/scenes/kcont_a data/scenes/kcont_b
 echo "clips: $(ls data/renders/*/*.mp4 | wc -l) (expected 30 full + 70 inputs + 70 kcont = 170)"
+kill $SYNC_PID 2>/dev/null || true
 python scripts/sync.py push
 exit $fail
