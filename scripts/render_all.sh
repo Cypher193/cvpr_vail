@@ -38,4 +38,5 @@ fail=0
 for p in "${pids[@]}"; do wait "$p" || fail=1; done
 rm -rf data/scenes/kcont_a data/scenes/kcont_b
 echo "clips: $(ls data/renders/*/*.mp4 | wc -l) (expected 30 full + 70 inputs + 70 kcont = 170)"
+python scripts/sync.py push
 exit $fail

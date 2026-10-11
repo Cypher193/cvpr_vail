@@ -26,16 +26,20 @@ Image: `ghcr.io/cypher193/cvpr_vail:latest`, built by GitHub Actions from the [D
 change to it or to `requirements.txt` (torch 2.8 / CUDA 12.8 base with SSH, all Python packages, Blender in `/opt/bpy`).
 The image holds dependencies only; code and data live on the network volume.
 
+Data lives on a private Hugging Face dataset repo (`CypherNotHere/cvpr-vail-pilot`, override with `HF_DATA_REPO`):
+`setup_runpod.sh` pulls it and starts a background push every 15 min (`scripts/sync.py`). Pods are disposable,
+so any datacenter and community cloud work. Model weights (~100 GB) are re-downloaded on each new pod.
+
 Pod template:
 - Container image: `ghcr.io/cypher193/cvpr_vail:latest` (if the package is private, add GHCR registry credentials
   in RunPod: username = GitHub user, password = a classic token with `read:packages`; or make the package public)
-- Container disk 30 GB; network volume (200 GB) mounted at `/workspace`
+- Container disk 30 GB; volume disk 200 GB at `/workspace` (pod-attached; no network volume needed)
 - Expose TCP 22 (SSH) and HTTP 8888 (Jupyter)
 - Environment: `HF_TOKEN = {{ RUNPOD_SECRET_HF_TOKEN }}` (store the token as a RunPod secret)
 - Filter hosts to CUDA 12.8 or newer
-- Render pod: RTX 4090 (or any RTX with >= 16 GB). Generation pod: RTX A6000 48 GB or A100 80 GB.
+- One pod can do everything if its GPU has RT cores and >= 48 GB (RTX A6000, L40S); A100 80 GB also works.
 
-First time on the volume: `cd /workspace && git clone https://github.com/Cypher193/cvpr_vail.git`; afterwards `git pull`.
+Before terminating a pod: `python scripts/sync.py push`.
 
 ## Order of work
 

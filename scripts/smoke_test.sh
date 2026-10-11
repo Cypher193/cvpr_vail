@@ -15,3 +15,4 @@ for d in sorted(glob.glob("runs/b1/*/*_s0")):
     print(d.split("/")[-2], f"{meta['wall_s']} s/clip", f"peak {meta.get('peak_gb')} GB", meta["cond_seconds"], "s input",
           {k: acts[k].shape for k in acts.files})
 EOF
+python scripts/sync.py push
