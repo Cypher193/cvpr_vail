@@ -22,12 +22,14 @@ commit them before any pilot run and do not edit thresholds after seeing data.
 
 ## Order of work
 
-1. **Local (laptop GPU):** `bash scripts/render_all.sh` renders all scenes (~7.5 h on an RTX 4060).
-2. **Local:** `python -m pilot.track validate data/renders/kmain --scenes data/scenes/kmain` and
-   `python -m pilot.track qval` → gate G1a.
-3. **RunPod:** `bash scripts/setup_runpod.sh` (needs `HF_TOKEN`), copy `data/scenes` and `data/renders`, then
-   `bash scripts/smoke_test.sh` (day 1).
-4. **RunPod:** generation, e.g. `python -m pilot.generate --model vace13 --exp b1` for each model × {b1, b2nl, b5, bratio, b1real}.
+All steps run on RunPod (A100 80 GB, network volume >= 150 GB at /workspace).
+
+1. `bash scripts/setup_runpod.sh` (needs `HF_TOKEN`): packages, model weights, real clips.
+2. `bash scripts/render_all.sh`: builds the Blender venv and renders all scenes (~12,500 frames; Cycles on the A100).
+3. `bash scripts/smoke_test.sh` (day 1).
+   Tracker check (G1a): `python -m pilot.track validate data/renders/kmain --scenes data/scenes/kmain` and
+   `python -m pilot.track qval`.
+4. Generation, e.g. `python -m pilot.generate --model vace13 --exp b1` for each model × {b1, b2nl, b5, bratio, b1real}.
 5. Tracking of generated clips, probes (`python -m pilot.probe --model vace13 --exps b1 b5 --target g`), gates report.
 
 ## Design notes found while building

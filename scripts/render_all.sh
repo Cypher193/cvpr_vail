@@ -1,9 +1,17 @@
 #!/usr/bin/env bash
-# Render every pilot scene with Blender (bpy 5.2, Python 3.13 venv). About 12,500 frames;
-# ~2.2 s/frame on an RTX 4060 laptop (~7.5 h). Re-running skips clips that already exist.
-#   python -m venv .venv-bpy && .venv-bpy/bin/pip install bpy==5.2.2 numpy pyyaml
+# Render every pilot scene with Blender (bpy 5.2 needs Python 3.13, so it gets its own venv via uv).
+# About 12,500 frames. Re-running skips clips that already exist. Works on RunPod (Linux) or locally.
 set -euo pipefail
-PY=${PY:-.venv-bpy/bin/python}
+if [ ! -d .venv-bpy ]; then
+  if command -v apt-get >/dev/null; then       # libraries the bpy wheel needs on a headless Linux pod
+    apt-get update -qq && apt-get install -y -qq libxrender1 libxi6 libxkbcommon0 libxxf86vm1 libxfixes3 \
+      libsm6 libice6 libgl1 libegl1 >/dev/null
+  fi
+  command -v uv >/dev/null || pip install -q uv
+  uv venv --python 3.13 .venv-bpy
+  uv pip install --python .venv-bpy bpy==5.2.2 numpy pyyaml
+fi
+PY=.venv-bpy/bin/python
 [ -x "$PY" ] || PY=.venv-bpy/Scripts/python
 python -m pilot.scenes --out data/scenes
 # full 24 fps clips: tracker validation (P0) and rendered-vs-real comparison
