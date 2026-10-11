@@ -74,9 +74,14 @@ def main():
     ap.add_argument("--seeds", type=int, nargs="*")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--no-capture", action="store_true", help="timing runs")
+    ap.add_argument("--res", help="override resolution as HEIGHTxWIDTH, e.g. 480x832; runs go to {model}_{H}p")
     a = ap.parse_args()
     cfg = yaml.safe_load(open(a.config))
-    mcfg, e = cfg["models"][a.model], cfg["experiments"][a.exp]
+    mcfg, e = dict(cfg["models"][a.model]), cfg["experiments"][a.exp]
+    run_name = a.model
+    if a.res:
+        mcfg["height"], mcfg["width"] = map(int, a.res.lower().split("x"))
+        run_name = f"{a.model}_{mcfg['height']}p"
     seeds = a.seeds or e.get("seeds") or cfg["seeds"]
     scenes = scene_list(cfg, a.exp)[: a.limit or None]
     gen = Generator(a.model, mcfg, cfg)
@@ -97,10 +102,12 @@ def main():
         if e.get("video") is False:
             frames, box = [], None
         for seed in seeds:
-            out = Path(cfg["paths"]["runs"]) / a.exp / a.model / f"{spec['id']}_s{seed}"
+            out = Path(cfg["paths"]["runs"]) / a.exp / run_name / f"{spec['id']}_s{seed}"
             if (out / "meta.json").exists():
                 continue
             out.mkdir(parents=True, exist_ok=True)
+            if torch.cuda.is_available():
+                torch.cuda.reset_peak_memory_stats()
             r = gen.generate(frames, prompt, seed, box, in_wh, capture=not a.no_capture)
             imageio.mimwrite(out / "video.mp4", r["video"], fps=mcfg["fps"], quality=9, macro_block_size=1)
             if r["acts"]:
@@ -109,9 +116,11 @@ def main():
             if r["final_latent"] is not None:
                 torch.save(r["final_latent"].to(torch.bfloat16), out / "latent.pt")
             meta = r["meta"] | dict(exp=a.exp, scene=spec["id"], box=box, in_wh=list(in_wh), commit=sha,
-                                    gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)
+                                    gpu=torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+                                    peak_gb=round(torch.cuda.max_memory_allocated() / 2**30, 1)
+                                    if torch.cuda.is_available() else None)
             (out / "meta.json").write_text(json.dumps(meta, indent=1))
-            print(f"{a.model} {a.exp} {spec['id']} s{seed}: {meta['wall_s']} s", flush=True)
+            print(f"{run_name} {a.exp} {spec['id']} s{seed}: {meta['wall_s']} s", flush=True)
 
 
 if __name__ == "__main__":

@@ -21,8 +21,10 @@ models:
     pipeline: Cosmos2_5_PredictBasePipeline
     fps: 16
     num_frames: 93
-    height: 704               # VERIFY: native 720p; try 480x832 in smoke test to save compute
-    width: 1280
+    height: 704               # native 720p. 480p option: generate --res 480x832 (runs go to cosmos2b_480p);
+    width: 1280               # the smoke test runs both, keep 480p if its clips look as good (half the compute)
+    vae_tiling: true          # 48 GB cards (RTX A6000): the 720p decode is the memory peak
+    cpu_offload: true         # text encoder (Qwen2.5-VL 7B) leaves the GPU after encoding; small speed cost
     steps: 36
     guidance: 7.0
     cond_frames: 5
@@ -61,6 +63,8 @@ models:
     cfg: separate
   wan22_5b:                   # C1-inv / C1-noise only (never generates in this study)
     repo: Wan-AI/Wan2.2-TI2V-5B-Diffusers
+    vae_tiling: true
+    cpu_offload: true
     pipeline: WanPipeline
     fps: 24
     num_frames: 121

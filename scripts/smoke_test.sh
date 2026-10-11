@@ -6,11 +6,12 @@ export HF_HOME=${HF_HOME:-/workspace/hf}
 for m in vace13 ltx2b cosmos2b; do
   python -m pilot.generate --model "$m" --exp b1 --limit 1 --seeds 0
 done
+python -m pilot.generate --model cosmos2b --exp b1 --limit 1 --seeds 0 --res 480x832   # compare with 720p
 python - <<'EOF'
 import json, glob, numpy as np
 for d in sorted(glob.glob("runs/b1/*/*_s0")):
     meta = json.load(open(f"{d}/meta.json"))
     acts = np.load(f"{d}/acts.npz")
-    print(meta["model"], f"{meta['wall_s']} s/clip", meta["cond_seconds"], "s input",
+    print(d.split("/")[-2], f"{meta['wall_s']} s/clip", f"peak {meta.get('peak_gb')} GB", meta["cond_seconds"], "s input",
           {k: acts[k].shape for k in acts.files})
 EOF

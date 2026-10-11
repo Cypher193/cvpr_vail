@@ -108,7 +108,13 @@ class Generator:
         kw = dict(torch_dtype=DTYPE)
         if cfg.get("revision"):
             kw["revision"] = cfg["revision"]
-        self.pipe = cls.from_pretrained(cfg["repo"], **kw).to(device)
+        self.pipe = cls.from_pretrained(cfg["repo"], **kw)
+        if cfg.get("cpu_offload"):            # each component goes to the GPU only while it runs (48 GB cards)
+            self.pipe.enable_model_cpu_offload()
+        else:
+            self.pipe.to(device)
+        if cfg.get("vae_tiling") and hasattr(self.pipe.vae, "enable_tiling"):
+            self.pipe.vae.enable_tiling()     # decode in tiles: the 720p decode is the memory peak
         self.pipe.set_progress_bar_config(disable=True)
 
     @torch.no_grad()
@@ -116,7 +122,11 @@ class Generator:
         """VAE latent of the input frames, pooled over the object region and overall (baseline probe)."""
         c = self.cfg
         x = self.pipe.video_processor.preprocess_video(_pil(frames, c["width"], c["height"]), c["height"], c["width"])
-        lat = self.pipe.vae.encode(x.to(self.device, DTYPE)).latent_dist.mean[0].float()   # (C, F, h, w)
+        vae = self.pipe.vae
+        home = next(vae.parameters()).device              # CPU when model offload is on
+        vae.to(self.device)
+        lat = vae.encode(x.to(self.device, DTYPE)).latent_dist.mean[0].float()   # (C, F, h, w)
+        vae.to(home)
         out = {"all": lat.mean((1, 2, 3)).cpu().numpy()}
         if box is not None:
             _, F, h, w = lat.shape
