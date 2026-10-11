@@ -33,8 +33,8 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Lowercase image name
-        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - name: Image name
+        run: echo "IMAGE=ghcr.io/cypher193/cvpr_vail" >> "$GITHUB_ENV"   # fixed name: repo renames do not move the image
       - uses: docker/build-push-action@v6
         with:
           context: .

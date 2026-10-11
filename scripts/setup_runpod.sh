@@ -4,7 +4,7 @@
 # Set HF_TOKEN as a RunPod secret / env var. Never write the token into the repo.
 set -euo pipefail
 mkdir -p /workspace && cd /workspace          # pod volume disk or container disk; no network volume needed
-[ -d cvpr_vail ] || git clone https://github.com/Cypher193/cvpr_vail.git
+[ -d cvpr_vail ] || git clone https://github.com/Cypher193/xakfdghdfjk.git cvpr_vail
 cd cvpr_vail
 export HF_HOME=/workspace/hf
 pip install -q -r requirements.txt
