@@ -10,6 +10,7 @@ Lighting/background: Poly Haven HDRIs; floor and optional back wall: Poly Haven 
 import argparse
 import json
 import math
+import os
 import random
 import urllib.request
 from pathlib import Path
@@ -28,9 +29,11 @@ RGB = dict(red=(0.8, 0.05, 0.04), blue=(0.05, 0.15, 0.8), yellow=(0.9, 0.75, 0.0
 def _get(url, dest=None):
     req = urllib.request.Request(url, headers={"User-Agent": "cvpr-vail-pilot"})
     data = urllib.request.urlopen(req, timeout=60).read()
-    if dest:
+    if dest:                      # write then rename: parallel render jobs never read a half-written file
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(data)
+        tmp = dest.with_suffix(dest.suffix + f".{os.getpid()}.tmp")
+        tmp.write_bytes(data)
+        os.replace(tmp, dest)
     return data
 
 
@@ -108,6 +111,8 @@ def setup(scene_spec, gpu, samples, fps, seconds):
                     for d in prefs.devices:
                         d.use = d.type == backend
                     sc.cycles.device = "GPU"
+                    if hasattr(sc.cycles, "denoising_use_gpu"):     # OIDN on the GPU (CPU was the bottleneck)
+                        sc.cycles.denoising_use_gpu = True
                     break
             except TypeError:
                 continue
