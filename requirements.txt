@@ -1,0 +1,14 @@
+# torch comes from the RunPod PyTorch image; install separately elsewhere.
+diffusers==0.41.0
+transformers>=5.0
+accelerate
+sentencepiece
+ftfy
+huggingface_hub
+imageio[ffmpeg]
+opencv-python-headless
+numpy
+scipy
+scikit-learn
+pandas
+pyyaml

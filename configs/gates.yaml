@@ -1,0 +1,49 @@
+# Go/no-go gates for the pilot.
+# Commit this file BEFORE any pilot run (day 3 at the latest).
+# Thresholds must not be edited after seeing data; log any change as a deviation.
+
+G1_tracker:
+  a_min_sym_mra_vs_gt: 0.80          # K-main renders and QuantiPhy val
+  b_min_measurability: 0.70          # per model, generated clips
+  fail: add CoTracker3 or stability filter; drop hard scenes; rerun P0 and P12
+
+G2_score_range:
+  b1_sym_mra_min: 0.10
+  b1_sym_mra_max: 0.90
+  fail: change scene mix or tau range
+
+G3_probe_signal:
+  min_margin_over_vae_and_control: 0.05   # at some block, in >= 1 model
+  fail: reframe H1 as knowledge absent; cut causal tests 130 h -> ~40 h
+
+G4_gamma_fit:
+  max_ci95_width: 0.5
+  fail: 8 seeds, or gravity range 0.25-4 g
+
+G5_clock:
+  rule: compare SILog and B-ratio with absolute error
+  fail: if clock dominates, clock-free metrics become the primary show score
+
+G6_steering:
+  rule: dose-response slope at +-2 SD has CI excluding 0 in >= 1 model
+  fail: keep only C9 (LEACE)
+
+G7_budget:
+  max_relative_error_min_per_clip: 0.25
+  estimates_min_per_clip: {cosmos2b: 3, ltx2b: 1, vace13: 3, cosmos14b: 16, cosmos3_nano: 16}
+  fail: re-budget; cut cosmos14b first
+
+G8_power:
+  target_power: 0.80
+  min_detectable_gap: 0.10
+  fail: add Kubric-style scenes (CPU only)
+
+G9_vace_continuation:
+  max_boundary_rel_error: 0.10       # position and velocity just after the input window
+  min_share_of_measurable_clips: 0.80
+  fail: swap to SkyReels-V2-DF-1.3B; rerun P1 and P3
+
+G10_domain_gap:
+  max_measurability_gap_points: 15   # rendered vs real (QuantiPhy val + Physics-IQ)
+  max_residual_ratio: 1.5
+  fail: main set becomes real footage; rendered scenes only for probes and gravity

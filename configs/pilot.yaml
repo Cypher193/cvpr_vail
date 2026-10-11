@@ -1,0 +1,95 @@
+# Pilot configuration. Values marked VERIFY are checked in the day-1 smoke test.
+
+paths:
+  data: data
+  runs: runs
+  results: results
+
+# Input window. Cosmos-Predict2.5 accepts at most 2 latent frames = 5 pixel frames
+# (diffusers Cosmos2_5_PredictBasePipeline, num_latent_conditional_frames in {1, 2}),
+# i.e. 0.3125 s at 16 fps. All models get about the same input duration so the
+# comparison is fair. LTX needs 8k+1 conditioning frames, so it gets 9 at 24 fps.
+score_until_s: 5.0          # score from the end of the input window to this time
+
+seeds: [0, 1, 2]
+capture_fractions: [0.25, 0.5, 0.75]   # denoising progress at which activations are saved
+
+models:
+  cosmos2b:
+    repo: nvidia/Cosmos-Predict2.5-2B
+    revision: diffusers/base/post-trained
+    pipeline: Cosmos2_5_PredictBasePipeline
+    fps: 16
+    num_frames: 93
+    height: 704               # VERIFY: native 720p; try 480x832 in smoke test to save compute
+    width: 1280
+    steps: 36
+    guidance: 7.0
+    cond_frames: 5
+    blocks: [transformer_blocks]
+    patch: [1, 2, 2]
+    vae_stride: [4, 8, 8]
+    cfg: separate             # cond pass first, then uncond pass
+  ltx2b:
+    repo: Lightricks/LTX-Video-0.9.5
+    pipeline: LTXConditionPipeline
+    fps: 24
+    num_frames: 121
+    height: 480
+    width: 704
+    steps: 50
+    guidance: 3.0
+    cond_frames: 9
+    blocks: [transformer_blocks]
+    patch: [1, 1, 1]
+    vae_stride: [8, 32, 32]
+    cfg: batched              # batch = [uncond, cond]
+    cond_batch_index: 1
+  vace13:
+    repo: Wan-AI/Wan2.1-VACE-1.3B-diffusers
+    pipeline: WanVACEPipeline
+    fps: 16
+    num_frames: 81
+    height: 480
+    width: 832
+    steps: 50
+    guidance: 5.0
+    cond_frames: 5
+    blocks: [blocks, vace_blocks]   # probes use `blocks`; `vace_blocks` kept for later
+    patch: [1, 2, 2]
+    vae_stride: [4, 8, 8]
+    cfg: separate
+  wan22_5b:                   # C1-inv / C1-noise only (never generates in this study)
+    repo: Wan-AI/Wan2.2-TI2V-5B-Diffusers
+    pipeline: WanPipeline
+    fps: 24
+    num_frames: 121
+    height: 704
+    width: 1280
+    blocks: [blocks]
+    patch: [1, 2, 2]
+    vae_stride: [4, 16, 16]
+  cosmos14b:                  # timing only (P11)
+    repo: nvidia/Cosmos-Predict2.5-14B
+    note: no diffusers branch listed; time it with the official cosmos-predict2.5 repo
+  cosmos3_nano:               # timing only (P11)
+    repo: nvidia/Cosmos3-Nano
+    note: Cosmos3OmniDiffusersPipeline is not in diffusers 0.41; follow the model card
+
+# Rendered scenes (pinhole camera facing the motion plane y = 0)
+render:
+  width: 854
+  height: 480
+  fps: 24
+  duration_s: 6.0
+  camera_distance_m: 5.0
+  hfov_deg: 50.0
+  floor_z_m: -1.0
+  samples: 32
+
+experiments:
+  b1:      {scenes: kmain, text: caption}
+  b2nl:    {scenes: kmain, text: b2nl, video: false}
+  b5:      {scenes: kgrav, text: caption}
+  bratio:  {scenes: kratio, text: caption}
+  b1real:  {scenes: real, text: caption, seeds: [0, 1]}

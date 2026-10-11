@@ -1,0 +1,13 @@
+data/
+runs/
+results/
+assets_cache/
+*.mp4
+*.npz
+*.pt
+*.hdr
+.env
+__pycache__/
+*.pyc
+.cache/
+.venv*/
