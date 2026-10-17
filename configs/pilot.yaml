@@ -21,10 +21,10 @@ models:
     pipeline: Cosmos2_5_PredictBasePipeline
     fps: 16
     num_frames: 93
-    height: 704               # native 720p. 480p option: generate --res 480x832 (runs go to cosmos2b_480p);
-    width: 1280               # the smoke test runs both, keep 480p if its clips look as good (half the compute)
-    vae_tiling: true          # 48 GB cards (RTX A6000): the 720p decode is the memory peak
-    cpu_offload: true         # text encoder (Qwen2.5-VL 7B) leaves the GPU after encoding; small speed cost
+    height: 480               # 480p chosen after the smoke test: same behaviour as 720p, 3.5x faster
+    width: 832                # (720p: 965 s/clip on L40S; 480p: 272 s)
+    vae_tiling: true
+    cpu_offload: false        # A100 80 GB fits everything; set true on 48 GB cards
     steps: 36
     guidance: 7.0
     cond_frames: 5
