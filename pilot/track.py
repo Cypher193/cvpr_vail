@@ -208,7 +208,7 @@ def validate(render_dir, scene_dir, out_csv):
     """P0 on renders: tracker readout vs exact ground truth (gate G1a)."""
     import pandas as pd
     rows = []
-    for vid in sorted(Path(render_dir).glob("*.mp4")):
+    for vid in sorted(v for v in Path(render_dir).glob("*.mp4") if v.stem.count("_") == 2):   # full clips only
         spec = json.loads((Path(scene_dir) / f"{vid.stem}.json").read_text(encoding="utf-8"))
         r = track_clip(vid, spec, cond_frames=5)
         row = dict(scene=vid.stem, family=spec["family"], measurable=r["measurable"])

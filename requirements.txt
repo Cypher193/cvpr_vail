@@ -3,6 +3,7 @@ diffusers==0.41.0
 transformers>=5.0
 accelerate
 sentencepiece
+protobuf          # transformers needs it to read T5 spiece.model (LTX text encoder)
 ftfy
 huggingface_hub
 imageio[ffmpeg]

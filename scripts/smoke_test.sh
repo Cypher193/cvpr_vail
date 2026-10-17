@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Day 1: one clip per generator, then one tracked clip. Check: runs complete, wall time per clip (G7 early look),
 # activation shapes, and that Wan-VACE reproduces its input frames (G9 early look: open runs/b1/vace13/*/video.mp4).
-set -euo pipefail
+set -uo pipefail          # keep going: one failing model must not hide the others
 export HF_HOME=${HF_HOME:-/workspace/hf}
 for m in vace13 ltx2b cosmos2b; do
   python -m pilot.generate --model "$m" --exp b1 --limit 1 --seeds 0
