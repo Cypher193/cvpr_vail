@@ -18,7 +18,7 @@ from pathlib import Path
 
 PY = sys.executable
 # A100 seconds per clip, from the L40S smoke test / 1.4; replaced by measured medians once clips exist
-EST = {"vace13": 275, "cosmos2b": 195, "ltx2b": 27, "cosmos14b": 700, "p7_ltx2b": 6, "p7_wan22_5b": 45}
+EST = {"vace13": 284, "cosmos2b": 240, "ltx2b": 27, "cosmos14b": 700, "p7_ltx2b": 6, "p7_wan22_5b": 45}
 LOAD_S = 150                                       # model load per step
 
 
@@ -41,15 +41,17 @@ PLAN = [  # priority order: the gates that matter most come first (approved plan
     cmd("probe-hspeed:cosmos2b", ["-m", "pilot.probe", "--model", "cosmos2b", "--exps", "b1", "--target", "hspeed"], 300),
     dict(name="steer:ltx2b", kind="gen", model="ltx2b", clips=40, out=["runs/steer/ltx2b"],
          cmd=[PY, "-m", "pilot.steer", "--model", "ltx2b", "--scenes", "10", "--alphas", "-2", "-1", "1", "2"]),
-    dict(name="steer:cosmos2b", kind="gen", model="cosmos2b", clips=10, out=["runs/steer/cosmos2b"],
-         cmd=[PY, "-m", "pilot.steer", "--model", "cosmos2b", "--scenes", "5", "--alphas", "-2", "2"]),
-    dict(name="p7:ltx2b", kind="gen", model="p7_ltx2b", clips=30, out=["runs/p7/ltx2b_noise", "runs/p7/ltx2b_inv"], cmd=[PY, "-m", "pilot.invert", "--model", "ltx2b"]),
+    dict(name="steer:cosmos2b", kind="gen", model="cosmos2b", clips=6, out=["runs/steer/cosmos2b"],
+         cmd=[PY, "-m", "pilot.steer", "--model", "cosmos2b", "--scenes", "3", "--alphas", "-2", "2"]),
+    dict(name="p7:ltx2b", kind="gen", model="p7_ltx2b", clips=30, out=["runs/p7/ltx2b_noise", "runs/p7/ltx2b_inv"],
+         cmd=[PY, "-m", "pilot.invert", "--model", "ltx2b"]),
     dict(name="p7:wan22_5b", kind="gen", model="p7_wan22_5b", clips=30, out=["runs/p7/wan22_5b_noise", "runs/p7/wan22_5b_inv"],
          cmd=[PY, "-m", "pilot.invert", "--model", "wan22_5b"]),
-    gen("vace13", "b2nl", 10, [0]), gen("cosmos2b", "b2nl", 10, [0]), gen("ltx2b", "b2nl", 30, [0]),
-    gen("vace13", "bratio", 5, [0]), gen("cosmos2b", "bratio", 5, [0]), gen("ltx2b", "bratio", 10, [0]),
-    cmd("p8:cosmos2b", ["-m", "pilot.likelihood", "--scenes", "5"], 900),
+    # reordered 2026-10-18 (user): timing and P8 before B2-nl / B-ratio, which are trimmed to fit the budget
     cmd("p11:timing", ["-c", "import subprocess,sys; sys.exit(subprocess.call(['bash','scripts/time_extra.sh']))"], 1800),
+    cmd("p8:cosmos2b", ["-m", "pilot.likelihood", "--scenes", "5"], 900),
+    gen("vace13", "b2nl", 10, [0]), gen("cosmos2b", "b2nl", 5, [0]), gen("ltx2b", "b2nl", 30, [0]),
+    gen("vace13", "bratio", 3, [0]), gen("cosmos2b", "bratio", 3, [0]), gen("ltx2b", "bratio", 10, [0]),
 ]
 FINAL_PROBES = [(m, e, t) for m in ("vace13", "cosmos2b", "ltx2b")
                 for e, t in ((["b1"], "hspeed"), (["b1", "b5"], "g"), (["b1", "b5"], "e"))] + \
