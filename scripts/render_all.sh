@@ -4,6 +4,7 @@
 set -euo pipefail
 # The Docker image ships Blender in /opt/bpy (BPY_PYTHON). Without the image, build a local venv.
 PY=${BPY_PYTHON:-}
+[ -z "$PY" ] && [ -x /opt/bpy/bin/python ] && PY=/opt/bpy/bin/python   # SSH sessions do not inherit image ENV
 if [ -z "$PY" ]; then
   if [ ! -d .venv-bpy ]; then
     if command -v apt-get >/dev/null; then       # libraries the bpy wheel needs on a headless Linux pod
