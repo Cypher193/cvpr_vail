@@ -27,8 +27,9 @@ def load_video(path):
     return np.stack(frames), float(fps)
 
 
-def sam2_masks(frames, boxes, model_id="facebook/sam2.1-hiera-large", device=None):
-    """frames uint8 (T, H, W, 3); boxes [[x0, y0, x1, y1], ...] on frame 0. Returns bool (n_obj, T, H, W)."""
+def sam2_masks(frames, boxes, model_id="facebook/sam2.1-hiera-large", device=None, prompt_frame=0):
+    """frames uint8 (T, H, W, 3); boxes [[x0, y0, x1, y1], ...] on prompt_frame. Returns bool (n_obj, T, H, W).
+    Propagates forward from the prompt frame, then backward if it is not the first frame."""
     import torch
     from transformers import Sam2VideoModel, Sam2VideoProcessor
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -39,14 +40,15 @@ def sam2_masks(frames, boxes, model_id="facebook/sam2.1-hiera-large", device=Non
     proc, model = _SAM[model_id]
     T, H, W = frames.shape[:3]
     sess = proc.init_video_session(video=list(frames), inference_device=device, dtype=dtype)
-    proc.add_inputs_to_inference_session(sess, frame_idx=0, obj_ids=list(range(1, len(boxes) + 1)),
+    proc.add_inputs_to_inference_session(sess, frame_idx=prompt_frame, obj_ids=list(range(1, len(boxes) + 1)),
                                          input_boxes=[[list(map(float, b)) for b in boxes]])
     out = np.zeros((len(boxes), T, H, W), bool)
     with torch.inference_mode():
-        model(inference_session=sess, frame_idx=0)          # segment the prompted frame first
-        for o in model.propagate_in_video_iterator(sess):
-            m = proc.post_process_masks([o.pred_masks], original_sizes=[[H, W]], binarize=True)[0]
-            out[:, o.frame_idx] = m.reshape(len(boxes), H, W).cpu().numpy()
+        model(inference_session=sess, frame_idx=prompt_frame)   # segment the prompted frame first
+        for reverse in ([False, True] if prompt_frame > 0 else [False]):
+            for o in model.propagate_in_video_iterator(sess, start_frame_idx=prompt_frame, reverse=reverse):
+                m = proc.post_process_masks([o.pred_masks], original_sizes=[[H, W]], binarize=True)[0]
+                out[:, o.frame_idx] = m.reshape(len(boxes), H, W).cpu().numpy()
     return out
 
 
@@ -236,23 +238,28 @@ def local_kinematics(t, xy, t_q, half_window=0.125):
 
 def validate_qval(qfile="data/real/qval_questions.json", root="data/quantiphy_val/validation_videos",
                   out_csv="results/p0_qval.csv"):
-    """P0 on real footage: QuantiPhy val kinematic answers recovered by the tracker (gate G1a)."""
+    """P0 on real footage: QuantiPhy val answers for 2D-motion clips recovered by the tracker (gate G1a).
+    Each object has its own box, prompt time and known size (the scale comes from the object itself)."""
     import pandas as pd
     rows = []
     for clip, q in json.loads(Path(qfile).read_text(encoding="utf-8")).items():
         frames, fps = load_video(Path(root) / f"{clip}.mp4")
         t = np.arange(len(frames)) / fps
-        names = list(q["boxes"])
-        masks = sam2_masks(frames, [q["boxes"][n] for n in names])
-        tracks, areas = {}, {}
-        for n, m in zip(names, masks):
-            tracks[n], areas[n] = centroids(m)
-        prior_name, prior_size = q["prior"]
-        s = px_per_m(areas[prior_name][:5], prior_size)
+        tracks = {}
+        for name, o in q["objects"].items():
+            f0 = int(round(o["prompt_t"] * fps))
+            m = sam2_masks(frames, [o["box"]], prompt_frame=f0)[0]
+            c, area = centroids(m)
+            near = area[max(f0 - 3, 0):f0 + 4]                    # size measured around the prompt frame
+            tracks[name] = c / px_per_m(near, o["size_m"])
         for obj, quantity, tq, unit, answer in q["questions"]:
-            v, acc = local_kinematics(t, tracks[obj] / s, tq)
-            pred = (v if quantity == "speed" else acc) / unit
-            rows.append(dict(clip=clip, object=obj, quantity=quantity, t=tq, answer=answer, tracked=pred,
+            if quantity == "avg_speed":                          # tq = (t0, t1): mean displacement rate
+                i0, i1 = (int(round(x * fps)) for x in tq)
+                pred = np.linalg.norm(tracks[obj][i1] - tracks[obj][i0]) / (t[i1] - t[i0]) / unit
+            else:
+                v, acc = local_kinematics(t, tracks[obj], tq, half_window=0.125 if quantity == "speed" else 0.25)
+                pred = (v if quantity == "speed" else acc) / unit
+            rows.append(dict(clip=clip, object=obj, quantity=quantity, t=str(tq), answer=answer, tracked=pred,
                              sym_mra=float(metrics.sym_mra(pred, answer)) if np.isfinite(pred) else 0.0))
             print(rows[-1], flush=True)
     df = pd.DataFrame(rows)

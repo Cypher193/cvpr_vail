@@ -23,17 +23,21 @@ PIQ = {  # name: (file stem, box on the frame at 2.6875 s, caption without quant
 }
 PIQ_INPUT_END_S = 3.0          # Physics-IQ conditioning ends at 3 s; the continuation is the ground truth
 
-QVAL = {  # clip: (object boxes on frame 0, size prior in metres, questions: (object, quantity, time s, unit to SI))
-    "captured_0021x": ({"ping pong ball": [474, 267, 492, 285]}, ("ping pong ball", 0.040),
-                       [("ping pong ball", "speed", 1.2, 0.01, 117.73), ("ping pong ball", "speed", 1.4, 0.01, 87.9)]),
-    "captured_0027s": ({"red ball": [405, 208, 453, 262]}, ("red ball", 0.07),
-                       [("red ball", "speed", 0.2, 0.01, 201.73), ("red ball", "speed", 0.6, 0.01, 66.68),
-                        ("red ball", "accel", 0.2, 0.01, 1086.09)]),
-    "captured_0034as": ({"left tennis ball": [148, 300, 199, 354], "right tennis ball": [658, 303, 712, 350]},
-                        ("left tennis ball", 0.067),
-                        [("left tennis ball", "speed", 1.2, 0.01, 82.93), ("right tennis ball", "speed", 1.2, 0.01, 99.47),
-                         ("left tennis ball", "speed", 1.3, 0.01, 84.54), ("right tennis ball", "speed", 1.3, 0.01, 92.33)]),
+# Tracker check (G1a) uses only 2D-motion clips (video_type "?2??"): the "?3??" clips move toward or away from
+# the camera and their labels are 3D speeds, which a 2D tracker cannot recover. Boxes are on the prompt frame.
+QVAL_CHECK = {  # clip: objects {name: box, prompt time s, size m}, questions (object, quantity, time, unit to SI, answer)
+    "simulation_0163": ({"ball": dict(box=[98, 272, 136, 310], prompt_t=0.25, size_m=0.21)},
+                        [("ball", "speed", 0.5, 1.0, 3.148), ("ball", "speed", 1.0, 1.0, 2.974),
+                         ("ball", "accel", 0.5, 1.0, 0.359), ("ball", "accel", 1.0, 1.0, 0.339)]),
+    "internet_0027": ({"white ball": dict(box=[474, 426, 526, 478], prompt_t=1.0, size_m=0.0572),
+                       "orange ball": dict(box=[181, 184, 233, 236], prompt_t=1.0, size_m=0.0572),
+                       "yellow ball": dict(box=[199, 362, 251, 414], prompt_t=1.0, size_m=0.0572)},
+                      [("white ball", "avg_speed", (1.0, 2.0), 0.01, 26.82), ("orange ball", "speed", 1.0, 0.01, 24.99),
+                       ("yellow ball", "accel", 2.0, 0.01, 11.0)]),
 }
+# Real inputs for b1real (rendered-vs-real check): boxes on frame 0 of the source clip.
+QVAL = {"captured_0021x": [474, 267, 492, 285], "captured_0027s": [405, 208, 453, 262],
+        "captured_0034as": [148, 300, 199, 354]}
 QVAL_CAPTIONS = {
     "captured_0021x": "A white ping pong ball on a wooden table. Static camera.",
     "captured_0027s": "A red ball hangs on a string. Static camera.",
@@ -56,12 +60,12 @@ def main(root="data"):
     if not (qdir / "validation_dataset.csv").exists():
         from huggingface_hub import snapshot_download
         snapshot_download("PaulineLi/QuantiPhy-validation", repo_type="dataset", local_dir=qdir)
-    for clip, (boxes, prior, _q) in QVAL.items():
+    for clip, box in QVAL.items():
         manifest.append(dict(id=f"qval_{clip}", source="quantiphy-val", video=str(qdir / "validation_videos" / f"{clip}.mp4"),
-                             wh=[854, 480], start_s=0.0, box=boxes[prior[0]], caption=QVAL_CAPTIONS[clip]))
+                             wh=[854, 480], start_s=0.0, box=box, caption=QVAL_CAPTIONS[clip]))
     (real / "manifest.json").write_text(json.dumps(manifest, indent=1))
     (real / "qval_questions.json").write_text(json.dumps(
-        {c: dict(boxes=b, prior=p, questions=q) for c, (b, p, q) in QVAL.items()}, indent=1))
+        {c: dict(objects=o, questions=q) for c, (o, q) in QVAL_CHECK.items()}, indent=1))
     print(f"{len(manifest)} real clips -> {real / 'manifest.json'}")
 
 
