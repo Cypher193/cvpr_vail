@@ -4,7 +4,7 @@ Positions are keyframed from the analytic tracks in each spec, so ground truth i
 Lighting/background: Poly Haven HDRIs; floor and optional back wall: Poly Haven textures (CC0).
 
     python -m pilot.render data/scenes/kmain --out data/renders/kmain --gpu                          # full clips, 24 fps
-    python -m pilot.render data/scenes/kgrav --out data/renders/kgrav --gpu --fps 48 --seconds 0.5 --suffix _in48   # inputs
+    python -m pilot.render data/scenes/kgrav --out data/renders/kgrav --gpu --fps 48 --seconds 1.125 --suffix _input   # inputs
     python -m pilot.render data/scenes/kcont --out data/renders/kcont --gpu --fps 16 --seconds 5.8125  # Cosmos C2-g
 """
 import argparse
@@ -122,7 +122,7 @@ def setup(scene_spec, gpu, samples, fps, seconds):
     cam.data.sensor_fit = "HORIZONTAL"
     cam.data.sensor_width = 36.0
     cam.data.lens = 18.0 / math.tan(math.radians(cam_spec["hfov_deg"] / 2))
-    cam.location = (0.0, -cam_spec["distance"], 0.0)
+    cam.location = (0.0, -cam_spec["distance"], cam_spec.get("cam_z", 0.0))
     cam.rotation_euler = (math.pi / 2, 0.0, 0.0)
     sc.collection.objects.link(cam)
     sc.camera = cam
@@ -196,7 +196,7 @@ if __name__ == "__main__":
     ap.add_argument("--samples", type=int, default=16)
     ap.add_argument("--fps", type=int, default=24)
     ap.add_argument("--seconds", type=float, default=6.0)
-    ap.add_argument("--suffix", default="", help="e.g. _in48 for the 48 fps input clips")
+    ap.add_argument("--suffix", default="", help="e.g. _input for the 48 fps input clips")
     ap.add_argument("--frames", type=int, default=0, help="debug: render only the first N frames")
     a = ap.parse_args()
     p = Path(a.scenes)

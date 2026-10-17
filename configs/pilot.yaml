@@ -5,10 +5,10 @@ paths:
   runs: runs
   results: results
 
-# Input window. Cosmos-Predict2.5 accepts at most 2 latent frames = 5 pixel frames
-# (diffusers Cosmos2_5_PredictBasePipeline, num_latent_conditional_frames in {1, 2}),
-# i.e. 0.3125 s at 16 fps. All models get about the same input duration so the
-# comparison is fair. LTX needs 8k+1 conditioning frames, so it gets 9 at 24 fps.
+# Input window per model (cond_frames). Cosmos-Predict2.5 accepts at most 2 latent frames = 5 pixel frames
+# (0.3125 s at 16 fps). Wan-VACE and LTX get ~1 s, ending on a latent-frame boundary (VACE 17 = 1 + 4*4,
+# LTX 25 = 1 + 8*3). The main result (probe vs output) compares each model with itself on identical input,
+# so the windows need not match across models; cross-model comparisons note the difference.
 score_until_s: 5.0          # score from the end of the input window to this time
 
 seeds: [0, 1, 2]
@@ -41,7 +41,7 @@ models:
     width: 704
     steps: 50
     guidance: 3.0
-    cond_frames: 9
+    cond_frames: 25           # 8k+1 frames; 1.04 s at 24 fps
     blocks: [transformer_blocks]
     patch: [1, 1, 1]
     vae_stride: [8, 32, 32]
@@ -56,7 +56,7 @@ models:
     width: 832
     steps: 50
     guidance: 5.0
-    cond_frames: 5
+    cond_frames: 17           # 1.06 s at 16 fps; known/masked boundary on a latent frame
     blocks: [blocks, vace_blocks]   # probes use `blocks`; `vace_blocks` kept for later
     patch: [1, 2, 2]
     vae_stride: [4, 8, 8]

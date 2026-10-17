@@ -46,7 +46,7 @@ def read_frames(path, times):
 def rendered_inputs(spec, render_dir, fps, n):
     """Input frames at exact times k/fps from the 48 fps input render, plus the object box over the window."""
     times = np.arange(n) / fps
-    frames, src_fps = read_frames(Path(render_dir) / f"{spec['id']}_in48.mp4", times)
+    frames, src_fps = read_frames(Path(render_dir) / f"{spec['id']}_input.mp4", times)
     assert abs(src_fps - 48) < 0.5, "input clips must be rendered at 48 fps"
     boxes = []
     for o in spec["objects"]:

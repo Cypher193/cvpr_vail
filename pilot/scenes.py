@@ -17,21 +17,23 @@ import yaml
 
 G = 9.81
 REST_SPEED = 0.05      # bounce speed (m/s) below which a ball comes to rest
+RATIO_CAMERA = dict(distance=9.0, cam_z=1.3)   # two-ball throws: farther and higher, frame spans z -1.06..3.66 m
 COLORS = ["red", "blue", "yellow", "green", "orange", "white", "purple"]
 
 
 # ---------------------------------------------------------------- camera
-def camera(cfg):
+def camera(cfg, distance=None, cam_z=0.0):
     r = cfg["render"]
     fx = (r["width"] / 2) / math.tan(math.radians(r["hfov_deg"] / 2))
     return dict(width=r["width"], height=r["height"], fx=fx, cx=r["width"] / 2, cy=r["height"] / 2,
-                distance=r["camera_distance_m"], hfov_deg=r["hfov_deg"], floor_z=r["floor_z_m"])
+                distance=distance or r["camera_distance_m"], cam_z=cam_z, hfov_deg=r["hfov_deg"],
+                floor_z=r["floor_z_m"])
 
 
 def project(cam, x, z):
-    """World point in the plane y = 0 -> pixel (u, v). Camera at (0, -D, 0) looking along +y."""
+    """World point in the plane y = 0 -> pixel (u, v). Camera at (0, -D, cam_z) looking along +y."""
     s = cam["fx"] / cam["distance"]
-    return cam["cx"] + s * np.asarray(x), cam["cy"] - s * np.asarray(z)
+    return cam["cx"] + s * np.asarray(x), cam["cy"] - s * (np.asarray(z) - cam.get("cam_z", 0.0))
 
 
 def px_per_m(cam):
@@ -123,11 +125,15 @@ def make_bounce(rng, sid, gmult=1.0, base=None):
 
 
 def make_ratio(rng, sid):
+    # Throws fast enough that the first landing (2 v / g >= 1.2 s) falls after the longest input window
+    # (~1.06 s); the wider, higher ratio camera (RATIO_CAMERA) keeps apexes up to ~4.4 m in frame.
     while True:
-        v1, v2 = rng.uniform(2.5, 5.5, 2)
-        if max(v1, v2) / min(v1, v2) >= 1.3:
+        slow = rng.uniform(5.9, 7.1)
+        fast = slow * rng.uniform(1.3, 1.5)
+        if fast <= 9.2:
             break
-    size = round(float(rng.uniform(0.12, 0.25)), 3)
+    v1, v2 = (slow, fast) if rng.random() < 0.5 else (fast, slow)
+    size = round(float(rng.uniform(0.25, 0.40)), 3)
     e = round(float(rng.uniform(0.6, 0.8)), 3)
     objs = []
     for x0, v in [(-0.9, v1), (0.9, v2)]:
@@ -205,11 +211,14 @@ def finalise(scene, cam, cfg, rng):
 
 
 def build(cfg, seed=0, n_cv=15, n_bounce=15, n_grav=10, n_ratio=10):
-    rng = np.random.default_rng(seed)
+    # one random stream per family, so changing one family never reshuffles the others
+    streams = {f: np.random.default_rng([seed, k]) for k, f in enumerate(("kmain", "kgrav", "kratio", "kcont"))}
     cam = camera(cfg)
     out = {}
+    rng = streams["kmain"]
     out["kmain"] = [finalise(make_cv(rng, f"kmain_cv_{i:02d}", cam), cam, cfg, rng) for i in range(n_cv)]
     out["kmain"] += [finalise(make_bounce(rng, f"kmain_ca_{i:02d}"), cam, cfg, rng) for i in range(n_bounce)]
+    rng = streams["kgrav"]
     out["kgrav"] = []
     for i in range(n_grav):
         base = make_bounce(rng, "tmp")["objects"][0]
@@ -220,10 +229,13 @@ def build(cfg, seed=0, n_cv=15, n_bounce=15, n_grav=10, n_ratio=10):
             s = finalise(make_bounce(rng, f"kgrav_{i:02d}_g{gm}", gm, base), cam, cfg, rng)
             s["env_seed"] = env                          # same look across gravity values
             out["kgrav"].append(s)
-    out["kratio"] = [finalise(make_ratio(rng, f"kratio_{i:02d}"), cam, cfg, rng) for i in range(n_ratio)]
+    rng = streams["kratio"]
+    cam_ratio = camera(cfg, **RATIO_CAMERA)
+    out["kratio"] = [finalise(make_ratio(rng, f"kratio_{i:02d}"), cam_ratio, cfg, rng) for i in range(n_ratio)]
     # C2-g: first part at Earth gravity, then switch at the end of the Cosmos input window.
     # Own bases, lower and less bouncy: after a switch to 0.25 g the bounce height is ~ e^2 (h + 1.44 m).
     t_switch = cfg["models"]["cosmos2b"]["cond_frames"] / cfg["models"]["cosmos2b"]["fps"]
+    rng = streams["kcont"]
     out["kcont"] = []
     for i in range(n_grav):
         base = make_bounce(rng, "tmp")["objects"][0]

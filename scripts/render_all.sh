@@ -23,12 +23,12 @@ python scripts/sync.py push --every 600 > data/logs/sync_render.log 2>&1 &   # p
 SYNC_PID=$!
 # Four independent jobs in parallel (one process does not fill the GPU); logs in data/logs/.
 #   full 24 fps clips: tracker validation (P0) and rendered-vs-real comparison
-#   48 fps input windows: exact input frames at 16 fps (every 3rd) and 24 fps (every 2nd)
+#   48 fps input windows (1.125 s): exact input frames at 16 fps (every 3rd) and 24 fps (every 2nd)
 #   C2-g continuations at Cosmos's native 16 fps (93 frames)
 pids=()
 $PY -m pilot.render data/scenes/kmain --out data/renders/kmain --gpu > data/logs/render_kmain.log 2>&1 & pids+=($!)
 ( for s in kmain kgrav kratio; do
-    $PY -m pilot.render data/scenes/$s --out data/renders/$s --gpu --fps 48 --seconds 0.5 --suffix _in48
+    $PY -m pilot.render data/scenes/$s --out data/renders/$s --gpu --fps 48 --seconds 1.125 --suffix _input
   done ) > data/logs/render_inputs.log 2>&1 & pids+=($!)
 # kcont split in two halves so the longest job does not set the wall time alone
 mkdir -p data/scenes/kcont_a data/scenes/kcont_b

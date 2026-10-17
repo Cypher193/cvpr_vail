@@ -87,10 +87,11 @@ def token_grid(cfg):
     return (f_lat // pt, cfg["height"] // (cfg["vae_stride"][1] * ph), cfg["width"] // (cfg["vae_stride"][2] * pw))
 
 
-def object_token_mask(cfg, grid, box, in_wh, n_cond_latent=2):
-    """Tokens covering the object box in the first n_cond_latent latent frames (the input frames)."""
+def object_token_mask(cfg, grid, box, in_wh):
+    """Tokens covering the object box in the latent frames that hold the input frames."""
     if box is None:
         return None
+    n_cond_latent = 1 + (cfg["cond_frames"] - 1) // cfg["vae_stride"][0]   # causal VAE: frame 0, then groups
     F, H, W = grid
     sx, sy = W / in_wh[0], H / in_wh[1]
     x0, y0, x1, y1 = box
