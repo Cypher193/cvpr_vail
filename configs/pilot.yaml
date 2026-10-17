@@ -24,7 +24,7 @@ models:
     height: 480               # 480p chosen after the smoke test: same behaviour as 720p, 3.5x faster
     width: 832                # (720p: 965 s/clip on L40S; 480p: 272 s)
     vae_tiling: true
-    cpu_offload: false        # A100 80 GB fits everything; set true on 48 GB cards
+    cpu_offload: true         # needed: with .to("cuda") diffusers 0.41 + cosmos_guardrail raises '_execution_device' missing
     steps: 36
     guidance: 7.0
     cond_frames: 5
@@ -83,7 +83,7 @@ models:
     height: 480
     width: 832
     vae_tiling: true
-    cpu_offload: false
+    cpu_offload: true          # same diffusers issue as cosmos2b
     steps: 36
     guidance: 7.0
     cond_frames: 5

@@ -24,7 +24,7 @@ LOAD_S = 150                                       # model load per step
 
 def gen(model, exp, limit, seeds):
     n = (limit or 7) * len(seeds)
-    return dict(name=f"{exp}:{model}", kind="gen", model=model, clips=n,
+    return dict(name=f"{exp}:{model}", kind="gen", model=model, clips=n, out=[f"runs/{exp}/{model}"],
                 cmd=[PY, "-m", "pilot.generate", "--model", model, "--exp", exp, "--seeds", *map(str, seeds)]
                 + (["--limit", str(limit)] if limit else []))
 
@@ -39,12 +39,12 @@ PLAN = [  # priority order: the gates that matter most come first (approved plan
     gen("vace13", "b1real", None, [0]), gen("cosmos2b", "b1real", None, [0]), gen("ltx2b", "b1real", None, [0]),
     cmd("probe-hspeed:ltx2b", ["-m", "pilot.probe", "--model", "ltx2b", "--exps", "b1", "--target", "hspeed"], 300),
     cmd("probe-hspeed:cosmos2b", ["-m", "pilot.probe", "--model", "cosmos2b", "--exps", "b1", "--target", "hspeed"], 300),
-    dict(name="steer:ltx2b", kind="gen", model="ltx2b", clips=40,
+    dict(name="steer:ltx2b", kind="gen", model="ltx2b", clips=40, out=["runs/steer/ltx2b"],
          cmd=[PY, "-m", "pilot.steer", "--model", "ltx2b", "--scenes", "10", "--alphas", "-2", "-1", "1", "2"]),
-    dict(name="steer:cosmos2b", kind="gen", model="cosmos2b", clips=10,
+    dict(name="steer:cosmos2b", kind="gen", model="cosmos2b", clips=10, out=["runs/steer/cosmos2b"],
          cmd=[PY, "-m", "pilot.steer", "--model", "cosmos2b", "--scenes", "5", "--alphas", "-2", "2"]),
-    dict(name="p7:ltx2b", kind="gen", model="p7_ltx2b", clips=30, cmd=[PY, "-m", "pilot.invert", "--model", "ltx2b"]),
-    dict(name="p7:wan22_5b", kind="gen", model="p7_wan22_5b", clips=30,
+    dict(name="p7:ltx2b", kind="gen", model="p7_ltx2b", clips=30, out=["runs/p7/ltx2b_noise", "runs/p7/ltx2b_inv"], cmd=[PY, "-m", "pilot.invert", "--model", "ltx2b"]),
+    dict(name="p7:wan22_5b", kind="gen", model="p7_wan22_5b", clips=30, out=["runs/p7/wan22_5b_noise", "runs/p7/wan22_5b_inv"],
          cmd=[PY, "-m", "pilot.invert", "--model", "wan22_5b"]),
     gen("vace13", "b2nl", 10, [0]), gen("cosmos2b", "b2nl", 10, [0]), gen("ltx2b", "b2nl", 30, [0]),
     gen("vace13", "bratio", 5, [0]), gen("cosmos2b", "bratio", 5, [0]), gen("ltx2b", "bratio", 10, [0]),
@@ -98,6 +98,10 @@ def main():
                               stdout=open("data/logs/score.log", "a"), stderr=subprocess.STDOUT)
     state = dict(budget_h=a.budget_h, steps={})
     for step in PLAN:
+        if step.get("out") and all(len(list(Path(o).glob("*/meta.json"))) >= step["clips"] for o in step["out"]):
+            state["steps"][step["name"]] = dict(status="done earlier")
+            log(f"DONE-EARLIER {step['name']}", state)
+            continue
         used = (time.time() - start) / 3600
         est = estimate(step) / 3600
         left = a.budget_h - a.reserve_h - used
