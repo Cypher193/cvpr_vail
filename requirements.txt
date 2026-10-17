@@ -5,6 +5,7 @@ accelerate
 sentencepiece
 protobuf          # transformers needs it to read T5 spiece.model (LTX text encoder)
 ftfy
+cosmos_guardrail  # NVIDIA safety guardrail, required by the Cosmos-Predict2.5 pipeline (gated: nvidia/Cosmos-1.0-Guardrail)
 huggingface_hub
 imageio[ffmpeg]
 opencv-python-headless
