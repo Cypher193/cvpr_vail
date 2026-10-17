@@ -74,10 +74,24 @@ models:
     blocks: [blocks]
     patch: [1, 2, 2]
     vae_stride: [4, 16, 16]
-  cosmos14b:                  # timing only (P11)
+  cosmos14b:                  # timing only (P11): one clip, same settings as cosmos2b
     repo: nvidia/Cosmos-Predict2.5-14B
-    note: no diffusers branch listed; time it with the official cosmos-predict2.5 repo
-  cosmos3_nano:               # timing only (P11)
+    revision: diffusers/base/post-trained
+    pipeline: Cosmos2_5_PredictBasePipeline
+    fps: 16
+    num_frames: 93
+    height: 480
+    width: 832
+    vae_tiling: true
+    cpu_offload: false
+    steps: 36
+    guidance: 7.0
+    cond_frames: 5
+    blocks: [transformer_blocks]
+    patch: [1, 2, 2]
+    vae_stride: [4, 8, 8]
+    cfg: separate
+  cosmos3_nano:               # timing only (P11): scripts/time_nano.py in its own venv (needs diffusers main)
     repo: nvidia/Cosmos3-Nano
     note: Cosmos3OmniDiffusersPipeline is not in diffusers 0.41; follow the model card
 

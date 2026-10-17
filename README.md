@@ -43,20 +43,24 @@ Before terminating a pod: `python scripts/sync.py push`.
 
 ## Order of work
 
-All steps run on RunPod (A100 80 GB, network volume >= 150 GB at /workspace).
+The pilot runs on one A100 80 GB pod (template `cvpr-vail-pilot`, 300 GB container disk), budget 12 A100-hours:
 
-1. `bash scripts/setup_runpod.sh` (needs `HF_TOKEN`): packages, model weights, real clips.
-2. `bash scripts/render_all.sh`: builds the Blender venv and renders all scenes (~12,500 frames; Cycles on the A100).
-3. `bash scripts/smoke_test.sh` (day 1).
-   Tracker check (G1a): `python -m pilot.track validate data/renders/kmain --scenes data/scenes/kmain` and
-   `python -m pilot.track qval`.
-4. Generation, e.g. `python -m pilot.generate --model vace13 --exp b1` for each model × {b1, b2nl, b5, bratio, b1real}.
-5. Tracking of generated clips, probes (`python -m pilot.probe --model vace13 --exps b1 b5 --target g`), gates report.
+    cd /workspace && git clone https://github.com/Cypher193/xakfdghdfjk.git cvpr_vail && cd cvpr_vail
+    setsid nohup bash scripts/pilot_pod.sh > /workspace/pilot.out 2>&1 < /dev/null &
+
+`pilot_pod.sh` = `setup_runpod.sh` (weights, data from HF, background sync) + guardrail check + `scripts/run_pilot.py`,
+which runs the approved plan in priority order inside the budget (B1 -> B5 -> real clips -> probes + steering ->
+P7 inversion/noising -> B2-nl -> B-ratio -> P8 likelihood gravity -> P11 timing for Cosmos-14B and Cosmos 3 Nano),
+skipping steps that no longer fit, while `pilot.score` tracks and scores clips alongside. Progress:
+`data/logs/pilot.log`, `data/logs/budget.json`; results: `results/show.csv`, `results/p6_*.csv`, `results/p8_*.csv`.
+
+CPU tests on tiny random-weight pipelines (no GPU): `python -m tests.test_generators`, `tests.test_steer`,
+`tests.test_invert`, `tests.test_likelihood`; metrics: `python -m pilot.metrics`.
 
 ## Design notes found while building
 
-- **Input window is about 0.3 s, not 1 s.** Cosmos-Predict2.5 (diffusers) accepts at most 2 latent conditioning
-  frames = 5 pixel frames = 0.3125 s at 16 fps. All models get the same duration (LTX: 9 frames at 24 fps = 0.375 s).
+- **Input windows differ per model.** Cosmos-Predict2.5 accepts at most 5 input frames (0.31 s at 16 fps); Wan-VACE
+  gets 17 frames (1.06 s) and LTX 25 frames (1.04 s). Each model is compared with itself on identical input.
 - **QuantiPhy val clips are 1.3–3.3 s long**, so they serve as the real-footage tracker check (9 kinematic
   questions on 3 clips) and as real inputs, not as a main scene source.
 - **Physics-IQ:** only 4 of 10 candidate scenarios keep the object in view after the input window
@@ -66,5 +70,4 @@ All steps run on RunPod (A100 80 GB, network volume >= 150 GB at /workspace).
 - Probe scores have a high floor (predicting the mean already scores ~0.68 when most g = 9.81), so read
   probe results only relative to the mean, VAE and control-task baselines.
 
-Not yet written (needed from day 6): `invert.py` (C1-inv / C1-noise), `likelihood.py` (C2-g), `steer.py` (C9/C7),
-random-init baseline, gates report.
+Not yet written: random-init probe baseline, automatic gates report (G1-G10 are read from results/ by hand for now).

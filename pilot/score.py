@@ -95,7 +95,7 @@ def score_all(runs="runs"):
     done = 0
     for v in sorted(Path(runs).glob("*/*/*/video.mp4")):
         d = v.parent
-        if (d / "score.json").exists() or not (d / "meta.json").exists():
+        if (d / "score.json").exists() or not (d / "meta.json").exists() or d.parts[-3] == "timing":
             continue
         meta = json.loads((d / "meta.json").read_text(encoding="utf-8"))
         kind, spec = find_spec(meta["scene"], manifest)
