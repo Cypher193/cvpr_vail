@@ -38,7 +38,7 @@ models:
     fps: 24
     num_frames: 121
     height: 480
-    width: 704
+    width: 832               # 832x480 keeps the 16:9 render aspect (704 squashed it 15%)
     steps: 50
     guidance: 3.0
     cond_frames: 25           # 8k+1 frames; 1.04 s at 24 fps

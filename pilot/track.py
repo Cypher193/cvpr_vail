@@ -193,6 +193,9 @@ def gt_boxes(spec, frame=0):
 def track_clip(video_path, spec, boxes=None, t_start=0.0, cond_frames=1):
     """Track a clip of a known scene. Returns readout dict plus measurability and pixel tracks."""
     frames, fps = load_video(video_path)
+    cam = spec["camera"]
+    if frames.shape[1:3] != (cam["height"], cam["width"]):   # generated clips: back to render geometry
+        frames = np.stack([cv2.resize(f, (cam["width"], cam["height"]), interpolation=cv2.INTER_AREA) for f in frames])
     t = np.arange(len(frames)) / fps
     masks = sam2_masks(frames, boxes or gt_boxes(spec))
     i0 = int(np.searchsorted(t, t_start))
@@ -200,7 +203,6 @@ def track_clip(video_path, spec, boxes=None, t_start=0.0, cond_frames=1):
     for o, m in zip(spec["objects"], masks):
         c, area = centroids(m)
         s = px_per_m(m[:cond_frames], o["size_m"])
-        cam = spec["camera"]
         xs.append((c[:, 0] - cam["cx"]) / s)
         zs.append(-(c[:, 1] - cam["cy"]) / s)
         ok &= measurable(area, i0)
