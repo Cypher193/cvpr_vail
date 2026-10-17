@@ -27,11 +27,13 @@ def load_video(path):
     return np.stack(frames), float(fps)
 
 
-def sam2_masks(frames, boxes, model_id="facebook/sam2.1-hiera-large", device=None, prompt_frame=0):
+def sam2_masks(frames, boxes, model_id=None, device=None, prompt_frame=0):
     """frames uint8 (T, H, W, 3); boxes [[x0, y0, x1, y1], ...] on prompt_frame. Returns bool (n_obj, T, H, W).
     Propagates forward from the prompt frame, then backward if it is not the first frame."""
+    import os
     import torch
     from transformers import Sam2VideoModel, Sam2VideoProcessor
+    model_id = model_id or os.environ.get("SAM2_MODEL", "facebook/sam2.1-hiera-large")   # tests use the tiny one
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     dtype = torch.bfloat16 if device == "cuda" else torch.float32
     if model_id not in _SAM:
