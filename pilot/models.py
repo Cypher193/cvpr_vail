@@ -102,14 +102,16 @@ def object_token_mask(cfg, grid, box, in_wh):
 
 
 class Generator:
-    def __init__(self, name, cfg, run_cfg, device="cuda"):
+    def __init__(self, name, cfg, run_cfg, device="cuda", pipe=None, dtype=DTYPE):
+        """pipe: an already-built pipeline (tests use tiny random-weight ones); otherwise loaded from the Hub."""
         import diffusers
-        self.name, self.cfg, self.run_cfg, self.device = name, cfg, run_cfg, device
-        cls = getattr(diffusers, cfg["pipeline"])
-        kw = dict(torch_dtype=DTYPE)
-        if cfg.get("revision"):
-            kw["revision"] = cfg["revision"]
-        self.pipe = cls.from_pretrained(cfg["repo"], **kw)
+        self.name, self.cfg, self.run_cfg, self.device, self.dtype = name, cfg, run_cfg, device, dtype
+        if pipe is None:
+            kw = dict(torch_dtype=dtype)
+            if cfg.get("revision"):
+                kw["revision"] = cfg["revision"]
+            pipe = getattr(diffusers, cfg["pipeline"]).from_pretrained(cfg["repo"], **kw)
+        self.pipe = pipe
         if cfg.get("cpu_offload"):            # each component goes to the GPU only while it runs (48 GB cards)
             self.pipe.enable_model_cpu_offload()
         else:
@@ -126,7 +128,7 @@ class Generator:
         vae = self.pipe.vae
         home = next(vae.parameters()).device              # CPU when model offload is on
         vae.to(self.device)
-        lat = vae.encode(x.to(self.device, DTYPE)).latent_dist.mean[0].float()   # (C, F, h, w)
+        lat = vae.encode(x.to(self.device, self.dtype)).latent_dist.mean[0].float()   # (C, F, h, w)
         vae.to(home)
         out = {"all": lat.mean((1, 2, 3)).cpu().numpy()}
         if box is not None:
@@ -165,11 +167,16 @@ class Generator:
             return self.pipe(**common, **extra)
         raise ValueError(self.name)
 
-    def generate(self, cond_frames, prompt, seed, obj_box=None, in_wh=(854, 480), capture=True):
+    def blocks(self, group=None):
+        return getattr(self.pipe.transformer, group or self.cfg["blocks"][0])
+
+    def generate(self, cond_frames, prompt, seed, obj_box=None, in_wh=(854, 480), capture=True, hooks=()):
+        """hooks: extra (module, forward_hook) pairs active during this call only (used for steering)."""
         c = self.cfg
         grid = token_grid(c)
         cap = Capture(c, c["steps"], self.run_cfg["capture_fractions"], grid,
                       object_token_mask(c, grid, obj_box, in_wh))
+        cap.handles += [m.register_forward_hook(fn) for m, fn in hooks]   # first: capture then sees steered output
         if capture:
             cap.attach(self.pipe.transformer)
         gen = torch.Generator(self.device).manual_seed(seed)
