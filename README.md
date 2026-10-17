@@ -33,7 +33,7 @@ so any datacenter and community cloud work. Model weights (~100 GB) are re-downl
 Pod template:
 - Container image: `ghcr.io/cypher193/cvpr_vail:latest` (if the package is private, add GHCR registry credentials
   in RunPod: username = GitHub user, password = a classic token with `read:packages`; or make the package public)
-- Container disk 30 GB; volume disk 200 GB at `/workspace` (pod-attached; no network volume needed)
+- Container disk 200 GB, no volume (data is synced to HF, so nothing on the pod needs to persist)
 - Expose TCP 22 (SSH) and HTTP 8888 (Jupyter)
 - Environment: `HF_TOKEN = {{ RUNPOD_SECRET_HF_TOKEN }}` (store the token as a RunPod secret)
 - Filter hosts to CUDA 12.8 or newer
