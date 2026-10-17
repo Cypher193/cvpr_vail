@@ -63,11 +63,16 @@ def centroids(masks):
     return c, area
 
 
-def px_per_m(area_cond, size_m, shape="sphere"):
-    """Scale from the object's known size, measured on the input frames only."""
-    a = np.median(area_cond[area_cond > 0])
-    width_px = 2 * np.sqrt(a / np.pi) if shape == "sphere" else np.sqrt(a)
-    return width_px / size_m
+def px_per_m(masks, size_m):
+    """Scale from the object's known size: median over frames of min(mask width, mask height).
+    Area overstates size (visible top face of boxes, motion blur, soft edges); blur stretches one axis,
+    the top face the other, so the smaller extent is the cleaner one."""
+    ext = []
+    for m in masks:
+        ys, xs = np.nonzero(m)
+        if len(xs):
+            ext.append(min(np.ptp(xs), np.ptp(ys)) + 1)
+    return float(np.median(ext)) / size_m
 
 
 def measurable(area, i0, min_present=0.8, area_lo=0.5, area_hi=2.0):
@@ -194,7 +199,7 @@ def track_clip(video_path, spec, boxes=None, t_start=0.0, cond_frames=1):
     xs, zs, ok = [], [], True
     for o, m in zip(spec["objects"], masks):
         c, area = centroids(m)
-        s = px_per_m(area[:cond_frames], o["size_m"], o["shape"])
+        s = px_per_m(m[:cond_frames], o["size_m"])
         cam = spec["camera"]
         xs.append((c[:, 0] - cam["cx"]) / s)
         zs.append(-(c[:, 1] - cam["cy"]) / s)
@@ -250,8 +255,7 @@ def validate_qval(qfile="data/real/qval_questions.json", root="data/quantiphy_va
             f0 = int(round(o["prompt_t"] * fps))
             m = sam2_masks(frames, [o["box"]], prompt_frame=f0)[0]
             c, area = centroids(m)
-            near = area[max(f0 - 3, 0):f0 + 4]                    # size measured around the prompt frame
-            tracks[name] = c / px_per_m(near, o["size_m"])
+            tracks[name] = c / px_per_m(m[max(f0 - 3, 0):f0 + 4], o["size_m"])   # size around the prompt frame
         for obj, quantity, tq, unit, answer in q["questions"]:
             if quantity == "avg_speed":                          # tq = (t0, t1): mean displacement rate
                 i0, i1 = (int(round(x * fps)) for x in tq)
