@@ -48,7 +48,7 @@ def ltx():
     torch.manual_seed(0)
     te, tok = _t5()
     tr = D.LTXVideoTransformer3DModel(in_channels=8, out_channels=8, patch_size=1, patch_size_t=1, num_attention_heads=4,
-                                      attention_head_dim=8, cross_attention_dim=32, num_layers=1, caption_channels=32)
+                                      attention_head_dim=8, cross_attention_dim=32, num_layers=2, caption_channels=32)
     vae = D.AutoencoderKLLTXVideo(in_channels=3, out_channels=3, latent_channels=8, block_out_channels=(8, 8, 8, 8),
                                   decoder_block_out_channels=(8, 8, 8, 8), layers_per_block=(1, 1, 1, 1, 1),
                                   decoder_layers_per_block=(1, 1, 1, 1, 1),

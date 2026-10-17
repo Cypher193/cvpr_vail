@@ -24,6 +24,11 @@ from pilot import metrics
 ALPHAS = np.logspace(-2, 4, 13)
 
 
+def target_value(gt, target):
+    """'hspeed' = horizontal speed for every kmain scene (cv: v, bounce: vx); other targets read directly."""
+    return gt.get("vx", gt.get("v")) if target == "hspeed" else gt.get(target)
+
+
 def load(runs, model, exps, target, scene_root="data/scenes"):
     """-> features dict {name: (n, D) or (n_blocks, n_steps, n, D)}, y (n,), groups (n,)."""
     feats, ys, groups = {}, [], []
@@ -33,14 +38,14 @@ def load(runs, model, exps, target, scene_root="data/scenes"):
             spec_file = next(Path(scene_root).glob(f"*/{meta['scene']}.json"), None)
             if spec_file is None:
                 continue
-            gt = json.loads(spec_file.read_text(encoding="utf-8"))["gt"]
-            if target not in gt or gt[target] <= 0:
+            y = target_value(json.loads(spec_file.read_text(encoding="utf-8"))["gt"], target)
+            if y is None or y <= 0:
                 continue
             z = np.load(d)
             for k in z.files:
                 if k != "steps":
                     feats.setdefault(k, []).append(z[k].astype(np.float32))
-            ys.append(gt[target])
+            ys.append(y)
             groups.append(meta["scene"].split("_g")[0])     # gravity variants of one scene form one group
     n = len(ys)
     feats = {k: np.stack(v, axis=-2) for k, v in feats.items() if len(v) == n}   # sample axis before D
@@ -104,6 +109,20 @@ def run(runs, model, exps, target, out_csv, pool="obj"):
           f"best block {best.block} step {best.step}: MRA {best.sym_mra:.3f}, control {best.control:.3f}, "
           f"margin {best.margin_over_vae_and_control:.3f}")
     return df
+
+
+def direction(runs, model, exps, target, group, block, step, pool="obj"):
+    """Probe direction for steering: ridge on all samples at one block/step, mapped back to raw activation space.
+    Returns (unit vector, std of projections onto it); +direction raises the predicted ln(target)."""
+    feats, y, g = load(runs, model, exps, target)
+    X = feats[f"{group}/{pool}"][block, step]
+    model_ = GridSearchCV(make_pipeline(StandardScaler(), Ridge()), {"ridge__alpha": ALPHAS},
+                          cv=GroupKFold(min(5, len(np.unique(g)))), scoring="neg_mean_squared_error")
+    model_.fit(X, np.log(y), groups=g)
+    scaler, ridge = model_.best_estimator_.named_steps.values()
+    w = ridge.coef_ / scaler.scale_
+    w = w / np.linalg.norm(w)
+    return w.astype(np.float32), float(np.std(X @ w))
 
 
 if __name__ == "__main__":
