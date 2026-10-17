@@ -68,8 +68,9 @@ models:
     pipeline: WanPipeline
     fps: 24
     num_frames: 121
-    height: 704
-    width: 1280
+    height: 480               # pilot budget: P7 only needs a forward pass at 480p
+    width: 832
+    steps: 50
     blocks: [blocks]
     patch: [1, 2, 2]
     vae_stride: [4, 16, 16]

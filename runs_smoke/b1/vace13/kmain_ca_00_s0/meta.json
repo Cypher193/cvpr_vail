@@ -1,0 +1,36 @@
+{
+ "model": "vace13",
+ "repo": "Wan-AI/Wan2.1-VACE-1.3B-diffusers",
+ "revision": null,
+ "seed": 0,
+ "prompt": "A yellow ball bounces on a floor. Static camera.",
+ "cond_frames": 17,
+ "cond_seconds": 1.0625,
+ "fps": 16,
+ "height": 480,
+ "width": 832,
+ "num_frames": 81,
+ "steps": 50,
+ "guidance": 5.0,
+ "wall_s": 384.6,
+ "token_grid": [
+  21,
+  30,
+  52
+ ],
+ "exp": "b1",
+ "scene": "kmain_ca_00",
+ "box": [
+  118.77388042761801,
+  232.93031538503573,
+  210.00239353766978,
+  410.27594194423483
+ ],
+ "in_wh": [
+  854,
+  480
+ ],
+ "commit": "3faa7fdb1cc11c0b94b777868d65e40723facde1",
+ "gpu": "NVIDIA L40S",
+ "peak_gb": 19.7
+}

@@ -95,3 +95,23 @@ BUILDERS = {"vace13": vace, "ltx2b": ltx, "cosmos2b": cosmos}
 def frames(n, wh=(64, 48), seed=0):
     rng = np.random.default_rng(seed)
     return [rng.integers(0, 255, (wh[1], wh[0], 3), dtype=np.uint8) for _ in range(n)]
+
+
+def wan22():
+    """Tiny WanPipeline with Wan2.2-TI2V's per-token timesteps (expand_timesteps)."""
+    torch.manual_seed(0)
+    te, tok = _t5()
+    tr = D.WanTransformer3DModel(patch_size=(1, 2, 2), num_attention_heads=2, attention_head_dim=12, in_channels=16,
+                                 out_channels=16, text_dim=32, freq_dim=256, ffn_dim=32, num_layers=2,
+                                 cross_attn_norm=True, qk_norm="rms_norm_across_heads", rope_max_seq_len=32)
+    pipe = D.WanPipeline(transformer=tr, vae=_wan_vae(), scheduler=D.FlowMatchEulerDiscreteScheduler(shift=7.0),
+                         text_encoder=te, tokenizer=tok, transformer_2=None, expand_timesteps=True)
+    cfg = dict(repo="tiny", fps=24, num_frames=9, height=32, width=32, steps=8, blocks=["blocks"], patch=[1, 2, 2],
+               vae_stride=[4, 8, 8])
+    return pipe, cfg
+
+
+def ltx_t2v():
+    pipe, cfg = ltx()
+    p = D.LTXPipeline(**{k: getattr(pipe, k) for k in ("transformer", "vae", "scheduler", "text_encoder", "tokenizer")})
+    return p, cfg
