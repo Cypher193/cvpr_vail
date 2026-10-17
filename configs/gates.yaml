@@ -1,6 +1,6 @@
-# Go/no-go gates for the pilot.
-# Commit this file BEFORE any pilot run (day 3 at the latest).
-# Thresholds must not be edited after seeing data; log any change as a deviation.
+# Go/no-go gates for the pilot. PRE-REGISTERED: approved by the user on 2026-10-17, before the pilot runs
+# (git tag prereg-v1). Thresholds must not be edited after this; any change is logged in configs/deviations.md.
+# Already logged: D1 (G1a QuantiPhy part scored on speed questions, approved after the smoke-test data).
 
 G1_tracker:
   a_min_sym_mra_vs_gt: 0.80          # K-main renders and QuantiPhy val
@@ -21,8 +21,9 @@ G4_gamma_fit:
   fail: 8 seeds, or gravity range 0.25-4 g
 
 G5_clock:
-  rule: compare SILog and B-ratio with absolute error
-  fail: if clock dominates, clock-free metrics become the primary show score
+  rule: clock dominates if median |ln(pred/true)| > 2 x SILog (most error is one global time scale), per model on B1
+  max_abs_log_err_over_silog: 2.0
+  fail: if clock dominates, clock-free metrics (SILog, B-ratio, gamma) become the primary show score
 
 G6_steering:
   rule: dose-response slope at +-2 SD has CI excluding 0 in >= 1 model

@@ -63,7 +63,12 @@ def scene_list(cfg, exp):
     if e["scenes"] == "real":
         return json.loads(Path("data/real/manifest.json").read_text(encoding="utf-8"))
     files = sorted((Path(cfg["paths"]["data"]) / "scenes" / e["scenes"]).glob("*.json"))
-    return [json.loads(f.read_text(encoding="utf-8")) for f in files]
+    specs = [json.loads(f.read_text(encoding="utf-8")) for f in files]
+    if e["scenes"] == "kmain":      # interleave families so --limit N is balanced: cv_00, ca_00, cv_01, ...
+        cv = [s for s in specs if s["family"] == "cv"]
+        ca = [s for s in specs if s["family"] != "cv"]
+        specs = [s for pair in zip(cv, ca) for s in pair] + cv[len(ca):] + ca[len(cv):]
+    return specs                    # kgrav is sorted by scene then gravity, so --limit 3k = k whole scenes
 
 
 def main():
